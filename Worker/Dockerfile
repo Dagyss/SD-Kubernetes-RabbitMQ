@@ -8,7 +8,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar el código
-COPY worker.py .
+COPY ./src/worker.py .
 
 # Exponer el puerto del Flask
 EXPOSE 5000
