@@ -1,78 +1,68 @@
-from flask import Flask, request, send_file, Response
-from PIL import Image
-import numpy as np
 import os
-from io import BytesIO
+import pika
+import uuid
+import numpy as np
+import cv2
 import time
+import socket
 
-app = Flask(__name__)
+# Leer configuración desde variables de entorno
+rabbitmq_host = os.getenv('RABBITMQ_HOST', 'rabbitmq')
+rabbitmq_user = os.getenv('RABBITMQ_USER', 'guest')
+rabbitmq_pass = os.getenv('RABBITMQ_PASS', 'guest')
 
-# Sobel kernels
-Kx = np.array([[-1, 0, 1],
-               [-2, 0, 2],
-               [-1, 0, 1]])
+# Configurar credenciales
+credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_pass)
+parameters = pika.ConnectionParameters(host=rabbitmq_host, credentials=credentials)
 
-Ky = np.array([[-1, -2, -1],
-               [0, 0, 0],
-               [1, 2, 1]])
-
-def apply_sobel(image_path):
-    img = Image.open(image_path).convert("L")
-    arr = np.array(img, dtype=np.float32)
-
-    gx = np.zeros_like(arr)
-    gy = np.zeros_like(arr)
-
-    for i in range(1, arr.shape[0] - 1):
-        for j in range(1, arr.shape[1] - 1):
-            region = arr[i-1:i+2, j-1:j+2]
-            gx[i, j] = np.sum(Kx * region)
-            gy[i, j] = np.sum(Ky * region)
-
-    sobel = np.hypot(gx, gy)
-    sobel = (sobel / sobel.max()) * 255.0
-    sobel = sobel.astype(np.uint8)
-
-    result = Image.fromarray(sobel)
-    return result
-
-@app.route("/process", methods=["POST"])
-def process():
-    if 'image' not in request.files:
-        return "No image part in the request", 400
-    
-    file = request.files['image']
-    
-    if file.filename == '':
-        return "No selected file", 400
-
-    temp_image_path = "temp_image.png"
-    file.save(temp_image_path)
-    
+# Intentar conexión con reintentos
+connection = None
+for attempt in range(10):
     try:
-        start_time = time.time()
+        print(f"Intentando conectar a RabbitMQ ({rabbitmq_host})... intento {attempt + 1}")
+        connection = pika.BlockingConnection(parameters)
+        print("✅ Conexión exitosa a RabbitMQ.")
+        break
+    except (pika.exceptions.AMQPConnectionError, socket.gaierror) as e:
+        print(f"❌ Fallo al conectar: {e}")
+        time.sleep(5)
 
-        processed_image = apply_sobel(temp_image_path)
+if connection is None:
+    print("❌ No se pudo establecer conexión con RabbitMQ. Terminando proceso.")
+    exit(1)
 
-        end_time = time.time()
+channel = connection.channel()
+channel.queue_declare(queue='sobel-tasks', durable=True)
+channel.queue_declare(queue='sobel-results', durable=True)
 
-        elapsed_time = end_time - start_time
+def on_request(ch, method, properties, body):
+    correlation_id = properties.correlation_id
 
-        output_buffer = BytesIO()
-        processed_image.save(output_buffer, format="PNG")
-        output_buffer.seek(0)
+    # Convertir el fragmento de bytes a una imagen
+    nparr = np.frombuffer(body, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
 
-        response = send_file(
-            output_buffer,
-            mimetype='image/png',
-            as_attachment=True,
-            download_name="processed_image.png"
-        )
-        response.headers["X-Processing-Time"] = f"{elapsed_time:.4f} seconds"
-        return response
-    finally:
-        if os.path.exists(temp_image_path):
-            os.remove(temp_image_path)
+    # Aplicar filtro Sobel
+    sobel_img = cv2.Sobel(img, cv2.CV_64F, 1, 1, ksize=3)
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    # Convertir imagen a bytes
+    _, buffer = cv2.imencode('.jpg', sobel_img)
+    processed_image = buffer.tobytes()
+
+    ch.basic_publish(
+        exchange='',
+        routing_key='sobel-results',
+        properties=pika.BasicProperties(
+            reply_to=properties.reply_to,
+            correlation_id=correlation_id
+        ),
+        body=processed_image
+    )
+
+    ch.basic_ack(delivery_tag=method.delivery_tag)
+
+channel.basic_qos(prefetch_count=1)
+channel.basic_consume(queue='sobel-tasks', on_message_callback=on_request)
+
+print("🐍 Worker listo. Esperando solicitudes...")
+channel.start_consuming()
