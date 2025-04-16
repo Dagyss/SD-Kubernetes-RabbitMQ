@@ -9,5 +9,8 @@ COPY target/*.jar app.jar
 
 EXPOSE 8080
 
+volumes:
+  - imagen_unida_sobel.jpg .
+
 # Ejecutar la aplicación
 ENTRYPOINT ["java", "-jar", "app.jar"]
