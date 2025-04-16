@@ -1,6 +1,7 @@
 package master.master.controllers;
 
 import lombok.RequiredArgsConstructor;
+import master.master.services.ImageFecadeService;
 import master.master.services.ImageProcessingService;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,18 +18,12 @@ import java.util.List;
 @RequestMapping("/task")
 public class ImageController {
 
-    private final ImageProcessingService imageProcessingService;
+    private final ImageFecadeService imageFacadeService;
 
-    @PostMapping("/processImage")
-    public ResponseEntity<byte[]> processImage(@RequestParam("image") MultipartFile imageFile) throws IOException {
-        int partes = 4;
-
-        List<byte[]> partesImagen = imageProcessingService.dividirImagen(imageFile, partes);
-
-        String format = imageFile.getContentType().split("/")[1];
-        byte[] imagenFinal = imageProcessingService.unirImagenes(partesImagen, format);
-
-        return new ResponseEntity<>(imagenFinal, getHttpHeaders(imageFile, imagenFinal.length), HttpStatus.OK);
+    @PostMapping("/processAndPublish")
+    public ResponseEntity<String> processAndPublish(@RequestParam("image") MultipartFile image, @RequestParam("partes") int partes) throws IOException {
+        imageFacadeService.procesarYPublicar(image, partes);
+        return ResponseEntity.ok("Imagen procesada y publicada en la cola.");
     }
 
     private HttpHeaders getHttpHeaders(MultipartFile imageFile, int contentLength) {
