@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ImagenProcesadaListener {
 
     private final Map<String, List<ParteProcesadaDTO>> buffer = new ConcurrentHashMap<>();
-    private final int TOTAL_PARTES = 4; // O lo que uses dinámicamente
+    private final int TOTAL_PARTES = 4;
 
     @Autowired
     private ImageProcessingService imageProcessingService;

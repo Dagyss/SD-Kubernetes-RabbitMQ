@@ -23,7 +23,7 @@ public class ImageProcessingServiceImpl implements ImageProcessingService {
         int height = originalImage.getHeight();
 
         int rows = (int) Math.sqrt(partes);
-        int cols = (partes + rows - 1) / rows; // Redondeo hacia arriba
+        int cols = (partes + rows - 1) / rows;
 
         int chunkWidth = width / cols;
         int chunkHeight = height / rows;
@@ -31,7 +31,7 @@ public class ImageProcessingServiceImpl implements ImageProcessingService {
         List<byte[]> partesImagenes = new ArrayList<>();
         int count = 0;
 
-        String format = image.getContentType().split("/")[1]; // "jpeg", "png", etc.
+        String format = image.getContentType().split("/")[1];
 
         for (int y = 0; y < rows && count < partes; y++) {
             for (int x = 0; x < cols && count < partes; x++) {
