@@ -18,6 +18,7 @@ import java.util.Map;
 public class RabbitPublisherServiceImpl implements RabbitPublisherService {
 
     private final RabbitTemplate rabbitTemplate;
+
     @Override
     public void publicarPartes(List<byte[]> partes) {
 

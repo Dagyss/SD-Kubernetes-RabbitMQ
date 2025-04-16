@@ -18,6 +18,7 @@ public class ImageFecadeServiceImpl implements ImageFecadeService {
 
     private final ImageProcessingService imageProcessingService;
     private final RabbitPublisherService rabbitPublisherService;
+
     @Override
     public void procesarYPublicar(MultipartFile imageFile, int partes) throws IOException {
         if (imageFile == null || imageFile.isEmpty()) {
