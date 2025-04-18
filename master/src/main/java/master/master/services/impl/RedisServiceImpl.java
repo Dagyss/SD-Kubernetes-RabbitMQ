@@ -34,6 +34,6 @@ public class RedisServiceImpl implements RedisService {
 
     @Override
     public void actualizarMetaData(String clave, ImageMetadata valor) {
-
+        redisTemplate.opsForValue().set(clave, valor);
     }
 }
