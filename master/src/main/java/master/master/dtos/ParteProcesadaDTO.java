@@ -11,5 +11,4 @@ public class ParteProcesadaDTO {
     private String id;
     private int indice;
     private String parteProcesada;
-    private String nombreImagen;
 }

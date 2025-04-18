@@ -40,12 +40,14 @@ def aplicar_sobel(image_bytes):
 
 def callback(ch, method, properties, body):
     mensaje = json.loads(body)
+    imageId = mensaje['id']
     indice = mensaje['indice']
     parte_bytes = base64.b64decode(mensaje['parte'])
     procesada_bytes = aplicar_sobel(parte_bytes)
     procesada_base64 = base64.b64encode(procesada_bytes).decode('utf-8')
 
     resultado = {
+        'id': imageId,
         'indice': indice,
         'parteProcesada': procesada_base64
     }
@@ -54,7 +56,7 @@ def callback(ch, method, properties, body):
         routing_key='image.processed.queue',
         body=json.dumps(resultado)
     )
-    print(f'[x] Procesado chunk #{indice}')
+    print(f'[x] Procesado chunk #{indice} de imagen con id: {imageId}')
 
 channel.basic_consume(
     queue='image.parts.queue',

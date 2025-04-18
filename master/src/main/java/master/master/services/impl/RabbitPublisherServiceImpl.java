@@ -20,7 +20,7 @@ public class RabbitPublisherServiceImpl implements RabbitPublisherService {
     private final RabbitTemplate rabbitTemplate;
 
     @Override
-    public void publicarPartes(List<byte[]> partes) {
+    public void publicarPartes(List<byte[]> partes, String imageId) {
 
         if (partes == null || partes.isEmpty()) {
             log.warn("No se enviaron partes de imagen, la lista está vacía o es null.");
@@ -29,8 +29,10 @@ public class RabbitPublisherServiceImpl implements RabbitPublisherService {
         log.info("Publicando {} partes a la cola.", partes.size());
         for (int i = 0; i < partes.size(); i++) {
             Map<String, Object> mensaje = new HashMap<>();
+            mensaje.put("id", imageId);
             mensaje.put("indice", i);
             mensaje.put("parte", Base64.getEncoder().encodeToString(partes.get(i)));
+
 
             rabbitTemplate.convertAndSend(
                     RabbitConfig.TASK_EXCHANGE,

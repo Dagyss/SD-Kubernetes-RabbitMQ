@@ -30,7 +30,7 @@ public class ImageFecadeServiceImpl implements ImageFecadeService {
         log.info("Iniciando procesamiento y publicación de imagen en {} partes", partes);
 
         List<byte[]> chunks = imageProcessingService.dividirImagen(imageFile, partes);
-        rabbitPublisherService.publicarPartes(chunks);
+        rabbitPublisherService.publicarPartes(chunks, id);
 
         ImageMetadata imageMetadata = new ImageMetadata(id, partes, 0, imageFile.getOriginalFilename(), imageFile.getContentType(), null );
 
