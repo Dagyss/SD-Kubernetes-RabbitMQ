@@ -1,6 +1,8 @@
 # Dockerfile para Python Worker
 FROM python:3.9-slim
 
+ENV PYTHONUNBUFFERED=1
+
 # Instalar dependencias del sistema necesarias para OpenCV
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
