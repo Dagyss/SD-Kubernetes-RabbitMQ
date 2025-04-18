@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ParteProcesadaDTO {
+    private String id;
     private int indice;
-    private String parteProcesada; // base64
+    private String parteProcesada;
+    private String nombreImagen;
 }
