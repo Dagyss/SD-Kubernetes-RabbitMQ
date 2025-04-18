@@ -1,3 +1,0 @@
-pika
-opencv-python
-numpy
