@@ -7,7 +7,6 @@ import master.master.models.ImageMetadata;
 import master.master.services.ImageProcessingService;
 import master.master.services.MetadataPersistenceService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -42,6 +41,7 @@ public class ImagenProcesadaListener {
         ImageMetadata imageMetadataUpdate = ImageMetadata.builder()
                 .id(imagenId)
                 .nombreImagen(imageMetadata.nombreImagen())
+                .contentType(imageMetadata.contentType())
                 .partes(imageMetadata.partes())
                 .partesProcesadas(imageMetadata.partesProcesadas() + 1).build();
 
