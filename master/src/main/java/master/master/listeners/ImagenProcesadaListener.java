@@ -2,6 +2,7 @@ package master.master.listeners;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import master.master.dtos.ParteProcesadaDTO;
 import master.master.models.ImageMetadata;
 import master.master.services.ImageProcessingService;
@@ -14,60 +15,85 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ImagenProcesadaListener {
 
     private final Map<String, List<ParteProcesadaDTO>> buffer = new ConcurrentHashMap<>();
-
     private final MetadataPersistenceService metadataPersistenceService;
     private final ImageProcessingService imageProcessingService;
+    private final ObjectMapper mapper;  // inyectado por Spring
 
     @RabbitListener(queues = "image.processed.queue")
-    public void recibirParteProcesada(String mensajeJson) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        ParteProcesadaDTO dto = mapper.readValue(mensajeJson, ParteProcesadaDTO.class);
+    public void recibirParteProcesada(String mensajeJson) {
+        try {
+            // 1) Deserializar DTO
+            ParteProcesadaDTO dto = mapper.readValue(mensajeJson, ParteProcesadaDTO.class);
+            if (dto == null || dto.getId() == null) {
+                log.warn("Mensaje inválido o sin ID: {}", mensajeJson);
+                return;
+            }
+            String imagenId = dto.getId();
 
-        String imagenId = dto.getId();
-
-        ImageMetadata imageMetadata = metadataPersistenceService.getMetadata(imagenId);
-
-        buffer.putIfAbsent(imagenId, new ArrayList<>());
-        buffer.get(imagenId).add(dto);
-
-        System.out.println("Recibida parte #" + dto.getIndice());
-
-        ImageMetadata imageMetadataUpdate = ImageMetadata.builder()
-                .id(imagenId)
-                .nombreImagen(imageMetadata.nombreImagen())
-                .contentType(imageMetadata.contentType())
-                .partes(imageMetadata.partes())
-                .partesProcesadas(imageMetadata.partesProcesadas() + 1).build();
-
-        metadataPersistenceService.updateMetadata(imagenId, imageMetadataUpdate);
-
-        if (metadataPersistenceService.isComplete(imagenId)) { // tiene que venir de redis
-            System.out.println("Se recibieron todas las partes, uniendo imagen...");
-
-            // Ordenar por índice
-            List<ParteProcesadaDTO> partes = buffer.remove(imagenId).stream()
-                    .sorted(Comparator.comparingInt(ParteProcesadaDTO::getIndice))
-                    .toList();
-
-            List<byte[]> partesBytes = new ArrayList<>();
-            for (ParteProcesadaDTO parte : partes) {
-                partesBytes.add(Base64.getDecoder().decode(parte.getParteProcesada()));
+            // 2) Recuperar metadata (puede venir de Redis u otro store)
+            ImageMetadata imageMetadata = metadataPersistenceService.getMetadata(imagenId);
+            if (imageMetadata == null) {
+                log.warn("No existe metadata para imagenId={}", imagenId);
+                return;
             }
 
-            String extension = imageMetadata.contentType().split("/")[1];
+            // 3) Guardar en buffer thread-safe
+            buffer.computeIfAbsent(imagenId, k -> new ArrayList<>()).add(dto);
+            log.info("Recibida parte #{} para imagenId={}", dto.getIndice(), imagenId);
 
-            byte[] imagenUnida = imageProcessingService.unirImagenes(partesBytes, extension);
+            // 4) Actualizar contador de partes procesadas
+            ImageMetadata updated = ImageMetadata.builder()
+                    .id(imagenId)
+                    .nombreImagen(imageMetadata.nombreImagen())
+                    .contentType(imageMetadata.contentType())
+                    .partes(imageMetadata.partes())
+                    .partesProcesadas(imageMetadata.partesProcesadas() + 1)
+                    .build();
+            metadataPersistenceService.updateMetadata(imagenId, updated);
 
-            Files.write(Path.of(String.format("/app/output/%s.%s",imagenId, extension)), imagenUnida);
+            // 5) Si ya están todas, unimos
+            if (metadataPersistenceService.isComplete(imagenId)) {
+                log.info("Todas las partes recibidas para id={}, uniendo imagen...", imagenId);
 
-            System.out.println("Imagen reconstruida y guardada");
-            metadataPersistenceService.deleteMetadata(imagenId);
+                List<ParteProcesadaDTO> partesDto = buffer.remove(imagenId);
+                if (partesDto == null || partesDto.isEmpty()) {
+                    log.error("Buffer vacío al tratar de unir imagen id={}", imagenId);
+                    return;
+                }
+
+                // Ordenar y decodificar
+                List<byte[]> partesBytes = partesDto.stream()
+                        .sorted(Comparator.comparingInt(ParteProcesadaDTO::getIndice))
+                        .map(p -> Base64.getDecoder().decode(p.getParteProcesada()))
+                        .collect(Collectors.toList());
+
+                // Extraer extensión (por ej. "png", "jpg")
+                String extension = imageMetadata.contentType().split("/")[1];
+
+                // Reconstruir imagen
+                byte[] merged = imageProcessingService.unirImagenes(partesBytes, extension);
+
+                // Asegurar carpeta de salida
+                Path outPath = Path.of("/app/output", imagenId + "." + extension);
+                Files.createDirectories(outPath.getParent());
+                Files.write(outPath, merged);
+
+                log.info("Imagen reconstruida y guardada en {}", outPath);
+                metadataPersistenceService.deleteMetadata(imagenId);
+            }
+
+        } catch (IOException e) {
+            log.error("Error I/O al procesar mensaje: {}", e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("Excepción inesperada en listener", e);
         }
     }
 }
