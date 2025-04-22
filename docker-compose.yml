@@ -13,6 +13,16 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
 
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--requirepass", "password"]
+    volumes:
+      - redis_data:/data
+
   master:
     build:
       context: ./master
@@ -25,11 +35,16 @@ services:
       - "8080:8080"
     depends_on:
       - rabbitmq
+      - redis
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: user
       SPRING_RABBITMQ_PASSWORD: password
+
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: password
 
   worker:
     build:
@@ -46,3 +61,4 @@ services:
 
 volumes:
   rabbitmq_data:
+  redis_data:

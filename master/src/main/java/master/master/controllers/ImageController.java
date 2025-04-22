@@ -2,6 +2,7 @@ package master.master.controllers;
 
 import lombok.RequiredArgsConstructor;
 import master.master.services.ImageFecadeService;
+import org.apache.catalina.connector.Request;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.UUID;
 
 @RequiredArgsConstructor
 @RestController
@@ -23,7 +25,8 @@ public class ImageController {
 
     @PostMapping("/processAndPublish")
     public ResponseEntity<String> processAndPublish(@RequestParam("image") MultipartFile image, @RequestParam("partes") int partes) throws IOException {
-        imageFacadeService.procesarYPublicar(image, partes);
+        String id = String.format("%s_%s", UUID.randomUUID(), image.getOriginalFilename());
+        imageFacadeService.procesarYPublicar(image, partes, id);
         return ResponseEntity.ok("Imagen procesada y publicada en la cola.");
     }
 
