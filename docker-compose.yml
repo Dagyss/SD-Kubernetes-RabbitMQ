@@ -29,7 +29,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./output:/app/output
-    image: master
+    image: dagyss/master:latest
     container_name: master
     ports:
       - "8080:8080"
@@ -50,7 +50,7 @@ services:
     build:
       context: ./worker
       dockerfile: Dockerfile
-    image: worker-app
+    image: dagyss/worker:latest
     depends_on:
       - rabbitmq
     environment:
