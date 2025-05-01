@@ -1,12 +1,12 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  annotations:
-    kompose.cmd: kompose convert -f docker-compose.yml -o k8s-manifests/
-    kompose.version: 1.35.0 (9532ceef3)
+  name: master
   labels:
     io.kompose.service: master
-  name: master
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o k8s-manifests/
+    kompose.version: "1.35.0 (9532ceef3)"
 spec:
   replicas: 1
   selector:
@@ -16,14 +16,19 @@ spec:
     type: Recreate
   template:
     metadata:
-      annotations:
-        kompose.cmd: kompose convert -f docker-compose.yml -o k8s-manifests/
-        kompose.version: 1.35.0 (9532ceef3)
       labels:
         io.kompose.service: master
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml -o k8s-manifests/
+        kompose.version: "1.35.0 (9532ceef3)"
     spec:
       containers:
-        - env:
+        - name: master
+          image: dagyss/master:latest
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
             - name: SPRING_RABBITMQ_HOST
               value: rabbitmq
             - name: SPRING_RABBITMQ_PASSWORD
@@ -38,16 +43,10 @@ spec:
               value: password
             - name: SPRING_REDIS_PORT
               value: "6379"
-          image: dagyss/master:latest
-          name: master
-          ports:
-            - containerPort: 8080
-              protocol: TCP
           volumeMounts:
-            - mountPath: /app/output
-              name: master-cm0
+            - name: output-vol
+              mountPath: /app/output
       restartPolicy: Always
       volumes:
-        - configMap:
-            name: master-cm0
-          name: master-cm0
+        - name: output-vol
+          emptyDir: {}
