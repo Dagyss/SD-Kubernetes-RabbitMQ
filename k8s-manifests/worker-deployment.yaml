@@ -30,6 +30,7 @@ spec:
       containers:
         - name: worker
           image: dagyss/worker:latest
+          imagePullPolicy: Always
           env:
             - name: RABBITMQ_HOST
               value: rabbitmq
@@ -39,4 +40,6 @@ spec:
               value: "5672"
             - name: RABBITMQ_USER
               value: user
+            - name: GCS_BUCKET_NAME
+              value: bucket-imagenes-sobel
       restartPolicy: Always

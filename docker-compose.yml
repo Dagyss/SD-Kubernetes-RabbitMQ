@@ -58,6 +58,7 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: user
       RABBITMQ_PASS: password
+      GCS_BUCKET_NAME: bucket-imagenes-sobel
 
 volumes:
   rabbitmq_data:

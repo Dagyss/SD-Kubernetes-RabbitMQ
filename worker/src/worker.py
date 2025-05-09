@@ -11,6 +11,7 @@ RABBITMQ_HOST = os.environ.get('RABBITMQ_HOST', 'localhost')
 RABBITMQ_PORT = int(os.environ.get('RABBITMQ_PORT', 5672))
 RABBITMQ_USER = os.environ.get('RABBITMQ_USER', 'user')
 RABBITMQ_PASS = os.environ.get('RABBITMQ_PASS', 'password')
+GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME', 'bucket-imagenes-sobel')  
 
 time.sleep(60)
 # Conexión a RabbitMQ con autenticación
@@ -25,8 +26,13 @@ connection = pika.BlockingConnection(
 channel = connection.channel()
 channel.basic_qos(prefetch_count=1)
 channel.queue_declare(queue='image.parts.queue')
-
 channel.queue_declare(queue='image.processed.queue')
+
+if not GCS_BUCKET_NAME:
+    raise RuntimeError("Environment variable GCS_BUCKET_NAME is required")
+storage_client = storage.Client()
+bucket = storage_client.bucket(GCS_BUCKET_NAME)
+
 
 def aplicar_sobel(image_bytes):
     nparr = np.frombuffer(image_bytes, np.uint8)
@@ -38,6 +44,14 @@ def aplicar_sobel(image_bytes):
     _, buffer = cv2.imencode('.jpg', sobel)
     return buffer.tobytes()
 
+
+def upload_to_gcs(image_id, index, image_bytes):
+    blob_name = f"{image_id}_{index}.jpg"
+    blob = bucket.blob(blob_name)
+    blob.upload_from_string(image_bytes, content_type='image/jpeg')
+    print(f"[x] Subido chunk procesado #{index} a bucket://{GCS_BUCKET_NAME}/{blob_name}")
+
+
 def callback(ch, method, properties, body):
     try:
         mensaje = json.loads(body)
@@ -45,12 +59,11 @@ def callback(ch, method, properties, body):
         indice = mensaje['indice']
         parte_bytes = base64.b64decode(mensaje['parte'])
         procesada_bytes = aplicar_sobel(parte_bytes)
-        procesada_base64 = base64.b64encode(procesada_bytes).decode('utf-8')
-
+        upload_to_gcs(imageId, indice, procesada_bytes)
         resultado = {
             'id': imageId,
             'indice': indice,
-            'parteProcesada': procesada_base64
+            'status': 'PROCESADO'
         }
         channel.basic_publish(
             exchange='',
