@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import json
 import time
+from google.cloud import storage
 
 # Leer configuración desde variables de entorno
 RABBITMQ_HOST = os.environ.get('RABBITMQ_HOST', 'localhost')
