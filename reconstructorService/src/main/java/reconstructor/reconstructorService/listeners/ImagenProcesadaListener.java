@@ -1,10 +1,13 @@
 package reconstructor.reconstructorService.listeners;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rabbitmq.client.Channel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Service;
 import reconstructor.reconstructorService.dtos.ImageMetadata;
 import reconstructor.reconstructorService.dtos.ParteProcesadaDTO;
@@ -13,11 +16,7 @@ import reconstructor.reconstructorService.services.ImageProcessingService;
 import reconstructor.reconstructorService.services.MetadataPersistenceService;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -32,13 +31,13 @@ public class ImagenProcesadaListener {
     @Value("${gcs.bucket.name}")
     private String bucketName;
 
-    @RabbitListener(queues = "image.processed.queue")
-    public void recibirParteProcesada(String mensajeJson) {
+    @RabbitListener(queues = "image.processed.queue", containerFactory = "rabbitListenerContainerFactory")
+    public void recibirParteProcesada(String mensajeJson, Channel channel, @Header(AmqpHeaders.DELIVERY_TAG) long tag) {
         try {
-
             ParteProcesadaDTO dto = mapper.readValue(mensajeJson, ParteProcesadaDTO.class);
             if (dto == null || dto.getId() == null) {
                 log.warn("Mensaje inválido o sin ID: {}", mensajeJson);
+                channel.basicAck(tag, false);
                 return;
             }
             String imagenId = dto.getId();
@@ -46,19 +45,14 @@ public class ImagenProcesadaListener {
             ImageMetadata imageMetadata = metadataPersistenceService.getMetadata(imagenId);
             if (imageMetadata == null) {
                 log.warn("No existe metadata para imagenId={}", imagenId);
+                channel.basicAck(tag, false);
                 return;
             }
 
             log.info("Recibida parte #{} para imagenId={}", dto.getIndice(), imagenId);
 
             // 4) Actualizar contador de partes procesadas
-            ImageMetadata updated = ImageMetadata.builder()
-                    .id(imagenId)
-                    .nombreImagen(imageMetadata.nombreImagen())
-                    .contentType(imageMetadata.contentType())
-                    .partes(imageMetadata.partes())
-                    .partesProcesadas(imageMetadata.partesProcesadas() + 1)
-                    .build();
+            ImageMetadata updated = ImageMetadata.builder().id(imagenId).nombreImagen(imageMetadata.nombreImagen()).contentType(imageMetadata.contentType()).partes(imageMetadata.partes()).partesProcesadas(imageMetadata.partesProcesadas() + 1).build();
             metadataPersistenceService.updateMetadata(imagenId, updated);
 
             // 5) Si ya están todas, unimos
@@ -82,10 +76,19 @@ public class ImagenProcesadaListener {
                 metadataPersistenceService.deleteMetadata(imagenId);
             }
 
+            channel.basicAck(tag, false);
         } catch (IOException e) {
             log.error("Error I/O al procesar mensaje: {}", e.getMessage(), e);
+            try {
+                channel.basicNack(tag, false, false);
+            } catch (IOException ignored) {
+            }
         } catch (Exception e) {
             log.error("Excepción inesperada en listener", e);
+            try {
+                channel.basicNack(tag, false, false);
+            } catch (IOException ignored) {
+            }
         }
     }
 }
