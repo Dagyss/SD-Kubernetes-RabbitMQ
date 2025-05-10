@@ -25,6 +25,7 @@ spec:
       containers:
         - name: master
           image: dagyss/master:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
               protocol: TCP
