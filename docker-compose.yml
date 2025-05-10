@@ -27,21 +27,40 @@ services:
     build:
       context: ./master
       dockerfile: Dockerfile
-    volumes:
-      - ./output:/app/output
     image: dagyss/master:latest
     container_name: master
     ports:
-      - "8080:8080"
+      - "8080:8080"   # gateway
+      - "8761:8761"   # Eureka UI/API
     depends_on:
       - rabbitmq
-      - redis
     environment:
+      SERVER_PORT: 8761
+      SPRING_APPLICATION_NAME: master
+      EUREKA_REGISTER_WITH_EUREKA: "false"
+      EUREKA_FETCH_REGISTRY: "false"
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: user
       SPRING_RABBITMQ_PASSWORD: password
 
+  reconstructor:
+    build:
+      context: ./reconstructor
+      dockerfile: Dockerfile
+    image: dagyss/reconstructor:latest
+    container_name: reconstructor
+    depends_on:
+      - master
+      - rabbitmq
+      - redis
+    environment:
+      SERVER_PORT: 0
+      SPRING_APPLICATION_NAME: reconstructor
+      EUREKA_SERVICE_URL_DEFAULTZONE: http://master:8761/eureka
+      EUREKA_CLIENT_REGISTER: "true"
+      EUREKA_CLIENT_FETCH: "true"
+      GCS_BUCKET_NAME: bucket-imagenes-sobel
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
       SPRING_REDIS_PASSWORD: password

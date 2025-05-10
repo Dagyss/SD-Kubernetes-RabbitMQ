@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import master.master.dtos.StatusResponse;
 
-@FeignClient(name = "${metadata.service.name:reconstructorService}", contextId = "imageClient", path = "/api/images", configuration = ImageClientConfig.class)
+@FeignClient(name = "${metadata.service.name:reconstructor}", contextId = "imageClient", path = "/api/images", configuration = ImageClientConfig.class)
 public interface ImageClient {
 
     @GetMapping(value = "/{idImagen}", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)

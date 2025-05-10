@@ -7,7 +7,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient(name = "${metadata.service.name:reconstructorService}", contextId = "metadataClient", path = "/api/metadata", configuration = ImageClientConfig.class)
+@FeignClient(name = "${metadata.service.name:reconstructor}", contextId = "metadataClient", path = "/api/metadata", configuration = ImageClientConfig.class)
 public interface MetadataClient {
 
     @PostMapping(
