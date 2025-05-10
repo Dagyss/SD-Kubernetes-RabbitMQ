@@ -29,12 +29,4 @@ public class ImageController {
         imageFacadeService.procesarYPublicar(image, partes, id);
         return ResponseEntity.ok("Imagen procesada y publicada en la cola.");
     }
-
-    private HttpHeaders getHttpHeaders(MultipartFile imageFile, int contentLength) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.valueOf(imageFile.getContentType()));
-        headers.setContentLength(contentLength);
-        headers.setContentDisposition(ContentDisposition.inline().filename("processed_" + imageFile.getOriginalFilename()).build());
-        return headers;
-    }
 }

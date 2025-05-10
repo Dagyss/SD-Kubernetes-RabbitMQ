@@ -1,4 +1,4 @@
-package master.master.configurations;
+package reconstructor.reconstructorService.configurations;
 
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
@@ -13,14 +13,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitConfig {
 
-    // Para enviar partes a los workers
-    public static final String TASK_QUEUE = "image.parts.queue";
     public static final String TASK_EXCHANGE = "image.exchange";
-    public static final String TASK_ROUTING_KEY = "image.part";
+
+    public static final String RESULT_QUEUE = "image.processed.queue";
+    public static final String RESULT_ROUTING_KEY = "image.processed";
 
     @Bean
-    public Queue taskQueue() {
-        return new Queue(TASK_QUEUE, false);
+    public Queue resultQueue() {
+        return new Queue(RESULT_QUEUE, false);
     }
 
     @Bean
@@ -29,10 +29,9 @@ public class RabbitConfig {
     }
 
     @Bean
-    public Binding bindingTaskQueue() {
-        return BindingBuilder.bind(taskQueue()).to(taskExchange()).with(TASK_ROUTING_KEY);
+    public Binding bindingResultQueue() {
+        return BindingBuilder.bind(resultQueue()).to(taskExchange()).with(RESULT_ROUTING_KEY);
     }
-
 
     @Bean
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {

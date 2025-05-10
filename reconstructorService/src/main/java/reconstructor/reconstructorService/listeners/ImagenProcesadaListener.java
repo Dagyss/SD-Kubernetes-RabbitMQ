@@ -1,14 +1,16 @@
-package master.master.listeners;
+package reconstructor.reconstructorService.listeners;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import master.master.dtos.ParteProcesadaDTO;
-import master.master.models.ImageMetadata;
-import master.master.services.ImageProcessingService;
-import master.master.services.MetadataPersistenceService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import reconstructor.reconstructorService.dtos.ImageMetadata;
+import reconstructor.reconstructorService.dtos.ParteProcesadaDTO;
+import reconstructor.reconstructorService.services.GcsService;
+import reconstructor.reconstructorService.services.ImageProcessingService;
+import reconstructor.reconstructorService.services.MetadataPersistenceService;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,15 +24,18 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ImagenProcesadaListener {
 
-    private final Map<String, List<ParteProcesadaDTO>> buffer = new ConcurrentHashMap<>();
     private final MetadataPersistenceService metadataPersistenceService;
     private final ImageProcessingService imageProcessingService;
-    private final ObjectMapper mapper;  // inyectado por Spring
+    private final ObjectMapper mapper;
+    private final GcsService gcsService;
+
+    @Value("${gcs.bucket.name}")
+    private String bucketName;
 
     @RabbitListener(queues = "image.processed.queue")
     public void recibirParteProcesada(String mensajeJson) {
         try {
-            // 1) Deserializar DTO
+
             ParteProcesadaDTO dto = mapper.readValue(mensajeJson, ParteProcesadaDTO.class);
             if (dto == null || dto.getId() == null) {
                 log.warn("Mensaje inválido o sin ID: {}", mensajeJson);
@@ -38,15 +43,12 @@ public class ImagenProcesadaListener {
             }
             String imagenId = dto.getId();
 
-            // 2) Recuperar metadata (puede venir de Redis u otro store)
             ImageMetadata imageMetadata = metadataPersistenceService.getMetadata(imagenId);
             if (imageMetadata == null) {
                 log.warn("No existe metadata para imagenId={}", imagenId);
                 return;
             }
 
-            // 3) Guardar en buffer thread-safe
-            buffer.computeIfAbsent(imagenId, k -> new ArrayList<>()).add(dto);
             log.info("Recibida parte #{} para imagenId={}", dto.getIndice(), imagenId);
 
             // 4) Actualizar contador de partes procesadas
@@ -61,32 +63,22 @@ public class ImagenProcesadaListener {
 
             // 5) Si ya están todas, unimos
             if (metadataPersistenceService.isComplete(imagenId)) {
-                log.info("Todas las partes recibidas para id={}, uniendo imagen...", imagenId);
-
-                List<ParteProcesadaDTO> partesDto = buffer.remove(imagenId);
-                if (partesDto == null || partesDto.isEmpty()) {
-                    log.error("Buffer vacío al tratar de unir imagen id={}", imagenId);
-                    return;
+                List<byte[]> partesBytes = new ArrayList<>();
+                for (int i = 0; i < updated.partes(); i++) {
+                    String blobName = imagenId + "_" + i + ".jpg";
+                    partesBytes.add(gcsService.descargarImagen(bucketName, blobName));
+                    gcsService.borrarImagen(bucketName, blobName);
                 }
 
-                // Ordenar y decodificar
-                List<byte[]> partesBytes = partesDto.stream()
-                        .sorted(Comparator.comparingInt(ParteProcesadaDTO::getIndice))
-                        .map(p -> Base64.getDecoder().decode(p.getParteProcesada()))
-                        .collect(Collectors.toList());
+                ImageMetadata meta = metadataPersistenceService.getMetadata(imagenId);
+                String extension = meta.contentType().split("/")[1];
 
-                // Extraer extensión (por ej. "png", "jpg")
-                String extension = imageMetadata.contentType().split("/")[1];
-
-                // Reconstruir imagen
                 byte[] merged = imageProcessingService.unirImagenes(partesBytes, extension);
 
-                // Asegurar carpeta de salida
-                Path outPath = Path.of("/app/output", imagenId + "." + extension);
-                Files.createDirectories(outPath.getParent());
-                Files.write(outPath, merged);
+                String outName = imagenId + "_sobel." + extension;
+                gcsService.subirImagen(bucketName, outName, merged, meta.contentType());
+                log.info("Imagen reconstruida y guardada en gs://{}/{}", bucketName, outName);
 
-                log.info("Imagen reconstruida y guardada en {}", outPath);
                 metadataPersistenceService.deleteMetadata(imagenId);
             }
 

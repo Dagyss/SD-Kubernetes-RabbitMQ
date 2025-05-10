@@ -1,6 +1,7 @@
-package master.master.services;
+package reconstructor.reconstructorService.services;
 
-import master.master.models.ImageMetadata;
+
+import reconstructor.reconstructorService.dtos.ImageMetadata;
 
 public interface MetadataPersistenceService {
     void persistMetadata(ImageMetadata metadata);
