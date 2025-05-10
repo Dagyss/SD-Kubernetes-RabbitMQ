@@ -1,15 +1,13 @@
 package master.master.feignClients;
 
+import master.master.configurations.ImageClientConfig;
 import master.master.models.ImageMetadata;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient(
-        name = "${metadata.service.name:reconstructorService}",
-        path = "/api/metadata"
-)
+@FeignClient(name = "${metadata.service.name:reconstructorService}", contextId = "metadataClient", path = "/api/metadata", configuration = ImageClientConfig.class)
 public interface MetadataClient {
 
     @PostMapping(
