@@ -72,6 +72,11 @@ variable "worker_max_nodes" {
   default     = 5
 }
 
+variable "bucket_name" {
+  description = "Nombre del bucket de GCS para almacenar fragmentos de imagen"
+  type        = string
+}
+
 provider "google" {
   credentials = file(var.credentials_file)
   project     = var.project_id
@@ -139,4 +144,8 @@ resource "google_container_node_pool" "worker_pool" {
     disk_size_gb = var.boot_disk_size_gb
     disk_type    = var.disk_type
   }
+}
+
+data "google_storage_bucket" "image_bucket" {
+  name = var.bucket_name
 }
