@@ -2,6 +2,8 @@ package master.master.controllers;
 
 import lombok.RequiredArgsConstructor;
 import master.master.configurations.ImageClientConfig;
+import master.master.dtos.Links;
+import master.master.dtos.ProcessResponse;
 import master.master.dtos.StatusResponse;
 import master.master.feignClients.ImageClient;
 import master.master.services.ImageFecadeService;
@@ -26,10 +28,20 @@ public class ImageController {
     private final ImageClient imageClient;
 
     @PostMapping("/processAndPublish")
-    public ResponseEntity<String> processAndPublish(@RequestParam("image") MultipartFile image, @RequestParam("partes") int partes) throws IOException {
+    public ResponseEntity<ProcessResponse> processAndPublish(
+            @RequestParam("image") MultipartFile image,
+            @RequestParam("partes") int partes) throws IOException {
+
         String id = String.format("%s_%s", UUID.randomUUID(), image.getOriginalFilename());
+
         imageFacadeService.procesarYPublicar(image, partes, id);
-        return ResponseEntity.ok("Imagen procesada y publicada en la cola.");
+
+        String message = "La imagen se ha procesado y se ha publicado en la cola. "
+                + "Utilice el ID para consultar el estado (GET /task/status/{id}) "
+                + "y, una vez completada la operación, para obtener la imagen resultante (GET /task/images/{id}).";
+        Links links = new Links("/task/status/" + id, "/task/images/" + id);
+        ProcessResponse response = new ProcessResponse(id, message, links);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/images/{idImagen}")
