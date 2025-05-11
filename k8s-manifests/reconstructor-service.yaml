@@ -9,10 +9,11 @@ metadata:
   name: reconstructor 
 spec:
   selector:
-    app: reconstructor   
+    app: reconstructor  
+  type: ClusterIP
   ports:
     - name: http
       port: 80
-      targetPort: 8080
+      targetPort: 80
   selector:
     io.kompose.service: reconstructor
