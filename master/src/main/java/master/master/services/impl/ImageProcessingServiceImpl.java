@@ -5,82 +5,71 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ImageProcessingServiceImpl implements ImageProcessingService {
 
     @Override
     public List<byte[]> dividirImagen(MultipartFile image, int partes) throws IOException {
-        BufferedImage originalImage = ImageIO.read(new ByteArrayInputStream(image.getBytes()));
+        if (partes <= 0) {
+            throw new IllegalArgumentException("El número de partes debe ser mayor o igual a 1");
+        }
 
-        int width = originalImage.getWidth();
-        int height = originalImage.getHeight();
+        // Leer imagen original
+        BufferedImage original = ImageIO.read(new ByteArrayInputStream(image.getBytes()));
+        int width = original.getWidth();
+        int height = original.getHeight();
+        int type = original.getType() == 0 ? BufferedImage.TYPE_INT_ARGB : original.getType();
 
-        int rows = (int) Math.sqrt(partes);
-        int cols = (partes + rows - 1) / rows;
+        // Cálculo de filas y columnas usando ceil
+        int rows = (int) Math.ceil(Math.sqrt(partes));
+        int cols = (int) Math.ceil((double) partes / rows);
 
-        int chunkWidth = width / cols;
-        int chunkHeight = height / rows;
+        // Tamaño base de cada fragmento
+        int baseW = width / cols;
+        int baseH = height / rows;
 
-        List<byte[]> partesImagenes = new ArrayList<>();
+        // Determinar formato (extensión) de la imagen
+        String format = Optional.ofNullable(image.getOriginalFilename())
+                .filter(fn -> fn.contains("."))
+                .map(fn -> fn.substring(fn.lastIndexOf('.') + 1))
+                .orElse("png");
+
+        List<byte[]> partesImagenes = new ArrayList<>(partes);
         int count = 0;
 
-        String format = image.getContentType().split("/")[1];
+        // Dividir la imagen
+        for (int ry = 0; ry < rows && count < partes; ry++) {
+            for (int cx = 0; cx < cols && count < partes; cx++) {
+                // Ajuste en bordes
+                int w = (cx == cols - 1) ? width - cx * baseW : baseW;
+                int h = (ry == rows - 1) ? height - ry * baseH : baseH;
 
-        for (int y = 0; y < rows && count < partes; y++) {
-            for (int x = 0; x < cols && count < partes; x++) {
-                int actualWidth = (x == cols - 1) ? width - x * chunkWidth : chunkWidth;
-                int actualHeight = (y == rows - 1) ? height - y * chunkHeight : chunkHeight;
+                BufferedImage subImage = new BufferedImage(w, h, type);
+                Graphics2D g = subImage.createGraphics();
+                g.drawImage(original,
+                        0, 0, w, h,
+                        cx * baseW, ry * baseH,
+                        cx * baseW + w, ry * baseH + h,
+                        null);
+                g.dispose();
 
-                BufferedImage subImage = originalImage.getSubimage(
-                        x * chunkWidth, y * chunkHeight,
-                        actualWidth, actualHeight
-                );
-
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                ImageIO.write(subImage, format, baos);
-                partesImagenes.add(baos.toByteArray());
+                try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                    ImageIO.write(subImage, format, baos);
+                    partesImagenes.add(baos.toByteArray());
+                }
                 count++;
             }
         }
 
         return partesImagenes;
-    }
-
-    @Override
-    public byte[] unirImagenes(List<byte[]> partes, String format) throws IOException {
-        List<BufferedImage> imagenesLista = new ArrayList<>();
-        for (byte[] parte : partes) {
-            imagenesLista.add(ImageIO.read(new ByteArrayInputStream(parte)));
-        }
-
-        int n = partes.size();
-        int rows = (int) Math.sqrt(n);
-        int cols = (n + rows - 1) / rows;
-
-        int chunkWidth = imagenesLista.get(0).getWidth();
-        int chunkHeight = imagenesLista.get(0).getHeight();
-
-        int totalWidth = chunkWidth * cols;
-        int totalHeight = chunkHeight * rows;
-
-        BufferedImage imagenFinal = new BufferedImage(totalWidth, totalHeight, BufferedImage.TYPE_INT_RGB);
-
-        int index = 0;
-        for (int y = 0; y < rows && index < imagenesLista.size(); y++) {
-            for (int x = 0; x < cols && index < imagenesLista.size(); x++) {
-                imagenFinal.createGraphics().drawImage(imagenesLista.get(index++), x * chunkWidth, y * chunkHeight, null);
-            }
-        }
-
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ImageIO.write(imagenFinal, format, baos);
-        return baos.toByteArray();
     }
 }

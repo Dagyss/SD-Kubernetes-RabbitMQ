@@ -9,6 +9,4 @@ public interface ImageProcessingService {
 
     List<byte[]> dividirImagen(MultipartFile image, int partes) throws IOException;
 
-    byte[] unirImagenes(List<byte[]> imagenes, String format) throws IOException;
-
 }
