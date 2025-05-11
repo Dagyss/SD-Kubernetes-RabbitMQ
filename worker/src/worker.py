@@ -27,7 +27,7 @@ connection = pika.BlockingConnection(
 channel = connection.channel()
 channel.basic_qos(prefetch_count=1)
 channel.queue_declare(queue='image.parts.queue')
-channel.queue_declare(queue='image.processed.queue')
+channel.queue_declare(queue='image.processed.queue', durable=True)
 
 if not GCS_BUCKET_NAME:
     raise RuntimeError("Environment variable GCS_BUCKET_NAME is required")
