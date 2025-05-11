@@ -51,11 +51,9 @@ public class ImagenProcesadaListener {
 
             log.info("Recibida parte #{} para imagenId={}", dto.getIndice(), imagenId);
 
-            // 4) Actualizar contador de partes procesadas
             ImageMetadata updated = ImageMetadata.builder().id(imagenId).nombreImagen(imageMetadata.nombreImagen()).contentType(imageMetadata.contentType()).partes(imageMetadata.partes()).partesProcesadas(imageMetadata.partesProcesadas() + 1).build();
             metadataPersistenceService.updateMetadata(imagenId, updated);
 
-            // 5) Si ya están todas, unimos
             if (metadataPersistenceService.isComplete(imagenId)) {
                 List<byte[]> partesBytes = new ArrayList<>();
                 for (int i = 0; i < updated.partes(); i++) {
@@ -68,14 +66,10 @@ public class ImagenProcesadaListener {
                 String extension = meta.contentType().split("/")[1];
 
                 byte[] merged = imageProcessingService.unirImagenes(partesBytes, extension);
-
-                String outName = imagenId + "_sobel." + extension;
+                String outName = imagenId;
                 gcsService.subirImagen(bucketName, outName, merged, meta.contentType());
                 log.info("Imagen reconstruida y guardada en gs://{}/{}", bucketName, outName);
-
-                metadataPersistenceService.deleteMetadata(imagenId);
             }
-
             channel.basicAck(tag, false);
         } catch (IOException e) {
             log.error("Error I/O al procesar mensaje: {}", e.getMessage(), e);
