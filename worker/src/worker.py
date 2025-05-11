@@ -72,7 +72,6 @@ def callback(ch, method, properties, body):
             body=json.dumps(resultado)
         )
         print(f'[x] Procesado chunk #{indice} de imagen con id: {imageId}')
-
         
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
