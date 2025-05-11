@@ -1,16 +1,18 @@
-package master.master.services.impl;
+package reconstructor.reconstructorService.services.impl;
+
 
 import lombok.RequiredArgsConstructor;
-import master.master.models.ImageMetadata;
-import master.master.services.MetadataPersistenceService;
-import master.master.services.RedisService;
 import org.springframework.stereotype.Service;
+import reconstructor.reconstructorService.dtos.ImageMetadata;
+import reconstructor.reconstructorService.services.MetadataPersistenceService;
+import reconstructor.reconstructorService.services.RedisService;
 
 @Service
 @RequiredArgsConstructor
 public class MetadataPersistenceServiceImpl implements MetadataPersistenceService {
 
     private final RedisService redisService;
+
     @Override
     public void persistMetadata(ImageMetadata metadata) {
         redisService.guardarMetaData(metadata.id(), metadata);
@@ -32,7 +34,7 @@ public class MetadataPersistenceServiceImpl implements MetadataPersistenceServic
     }
 
     @Override
-    public boolean exists(String id){
+    public boolean exists(String id) {
         return redisService.obtenerMetaData(id) != null;
     }
 

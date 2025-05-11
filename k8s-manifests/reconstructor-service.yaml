@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o k8s-manifests/
+    kompose.version: 1.35.0 (9532ceef3)
+  labels:
+    io.kompose.service: reconstructor
+  name: reconstructor 
+spec:
+  selector:
+    app: reconstructor  
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+  selector:
+    io.kompose.service: reconstructor

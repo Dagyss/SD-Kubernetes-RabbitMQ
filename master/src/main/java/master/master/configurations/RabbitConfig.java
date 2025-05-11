@@ -18,18 +18,9 @@ public class RabbitConfig {
     public static final String TASK_EXCHANGE = "image.exchange";
     public static final String TASK_ROUTING_KEY = "image.part";
 
-    // Para recibir partes procesadas de los workers
-    public static final String RESULT_QUEUE = "image.processed.queue";
-    public static final String RESULT_ROUTING_KEY = "image.processed";
-
     @Bean
     public Queue taskQueue() {
         return new Queue(TASK_QUEUE, false);
-    }
-
-    @Bean
-    public Queue resultQueue() {
-        return new Queue(RESULT_QUEUE, false);
     }
 
     @Bean
@@ -42,10 +33,6 @@ public class RabbitConfig {
         return BindingBuilder.bind(taskQueue()).to(taskExchange()).with(TASK_ROUTING_KEY);
     }
 
-    @Bean
-    public Binding bindingResultQueue() {
-        return BindingBuilder.bind(resultQueue()).to(taskExchange()).with(RESULT_ROUTING_KEY);
-    }
 
     @Bean
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
