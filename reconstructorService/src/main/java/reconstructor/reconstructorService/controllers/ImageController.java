@@ -24,9 +24,9 @@ import reconstructor.reconstructorService.services.MetadataPersistenceService;
 public class ImageController {
 
     private final GcsService gcsService;
+    private final MetadataPersistenceService metadataPersistenceService;
     @Value("${gcs.bucket.name}")
     private String bucketName;
-    private final MetadataPersistenceService metadataPersistenceService;
 
     @GetMapping("/{idImagen}")
     public ResponseEntity<ByteArrayResource> obtenerImagen(@PathVariable String idImagen) {
@@ -40,10 +40,10 @@ public class ImageController {
                     ? idImagen.substring(idImagen.lastIndexOf('.') + 1).toLowerCase()
                     : "";
             MediaType mediaType = switch (ext) {
-                case "png"  -> MediaType.IMAGE_PNG;
-                case "gif"  -> MediaType.IMAGE_GIF;
+                case "png" -> MediaType.IMAGE_PNG;
+                case "gif" -> MediaType.IMAGE_GIF;
                 case "jpg", "jpeg" -> MediaType.IMAGE_JPEG;
-                default    -> MediaType.APPLICATION_OCTET_STREAM;
+                default -> MediaType.APPLICATION_OCTET_STREAM;
             };
 
             metadataPersistenceService.deleteMetadata(idImagen);

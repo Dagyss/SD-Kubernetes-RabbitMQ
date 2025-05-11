@@ -12,8 +12,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitConfig {
 
-    public static final String TASK_EXCHANGE      = "image.exchange";
-    public static final String RESULT_QUEUE       = "image.processed.queue";
+    public static final String TASK_EXCHANGE = "image.exchange";
+    public static final String RESULT_QUEUE = "image.processed.queue";
     public static final String RESULT_ROUTING_KEY = "image.processed";
 
     @Bean

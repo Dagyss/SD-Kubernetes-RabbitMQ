@@ -5,7 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
-import java.awt.Graphics2D;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -25,16 +25,16 @@ public class ImageProcessingServiceImpl implements ImageProcessingService {
 
         // Leer imagen original
         BufferedImage original = ImageIO.read(new ByteArrayInputStream(image.getBytes()));
-        int width  = original.getWidth();
+        int width = original.getWidth();
         int height = original.getHeight();
-        int type   = original.getType() == 0 ? BufferedImage.TYPE_INT_ARGB : original.getType();
+        int type = original.getType() == 0 ? BufferedImage.TYPE_INT_ARGB : original.getType();
 
         // Cálculo de filas y columnas usando ceil
         int rows = (int) Math.ceil(Math.sqrt(partes));
         int cols = (int) Math.ceil((double) partes / rows);
 
         // Tamaño base de cada fragmento
-        int baseW = width  / cols;
+        int baseW = width / cols;
         int baseH = height / rows;
 
         // Determinar formato (extensión) de la imagen

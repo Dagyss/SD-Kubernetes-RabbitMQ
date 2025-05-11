@@ -1,15 +1,12 @@
 package master.master.controllers;
 
 import lombok.RequiredArgsConstructor;
-import master.master.configurations.ImageClientConfig;
 import master.master.dtos.Links;
 import master.master.dtos.ProcessResponse;
 import master.master.dtos.StatusResponse;
 import master.master.feignClients.ImageClient;
 import master.master.services.ImageFecadeService;
-import org.apache.catalina.connector.Request;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -52,10 +49,10 @@ public class ImageController {
                 ? idImagen.substring(idImagen.lastIndexOf('.') + 1).toLowerCase()
                 : "";
         MediaType mediaType = switch (ext) {
-            case "png"  -> MediaType.IMAGE_PNG;
-            case "gif"  -> MediaType.IMAGE_GIF;
+            case "png" -> MediaType.IMAGE_PNG;
+            case "gif" -> MediaType.IMAGE_GIF;
             case "jpg", "jpeg" -> MediaType.IMAGE_JPEG;
-            default    -> MediaType.APPLICATION_OCTET_STREAM;
+            default -> MediaType.APPLICATION_OCTET_STREAM;
         };
 
         return ResponseEntity.ok()

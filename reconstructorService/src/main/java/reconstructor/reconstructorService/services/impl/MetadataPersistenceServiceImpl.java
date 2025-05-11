@@ -12,6 +12,7 @@ import reconstructor.reconstructorService.services.RedisService;
 public class MetadataPersistenceServiceImpl implements MetadataPersistenceService {
 
     private final RedisService redisService;
+
     @Override
     public void persistMetadata(ImageMetadata metadata) {
         redisService.guardarMetaData(metadata.id(), metadata);
@@ -33,7 +34,7 @@ public class MetadataPersistenceServiceImpl implements MetadataPersistenceServic
     }
 
     @Override
-    public boolean exists(String id){
+    public boolean exists(String id) {
         return redisService.obtenerMetaData(id) != null;
     }
 

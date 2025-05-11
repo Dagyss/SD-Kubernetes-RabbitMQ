@@ -16,7 +16,8 @@ import reconstructor.reconstructorService.services.ImageProcessingService;
 import reconstructor.reconstructorService.services.MetadataPersistenceService;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Service

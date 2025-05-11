@@ -1,7 +1,6 @@
 package reconstructor.reconstructorService.services.impl;
 
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 import reconstructor.reconstructorService.services.ImageProcessingService;
 
 import javax.imageio.ImageIO;
@@ -12,7 +11,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class ImageProcessingServiceImpl implements ImageProcessingService {
@@ -29,7 +27,7 @@ public class ImageProcessingServiceImpl implements ImageProcessingService {
             imagenesLista.add(ImageIO.read(new ByteArrayInputStream(parte)));
         }
 
-        int n    = imagenesLista.size();
+        int n = imagenesLista.size();
         int rows = (int) Math.ceil(Math.sqrt(n));
         int cols = (int) Math.ceil((double) n / rows);
 

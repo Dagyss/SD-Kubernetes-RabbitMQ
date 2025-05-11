@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 public interface MetadataClient {
 
     @PostMapping(
-            value    = "/guardar",
+            value = "/guardar",
             consumes = MediaType.APPLICATION_JSON_VALUE
     )
     void guardarMetaData(@RequestBody ImageMetadata metadata);

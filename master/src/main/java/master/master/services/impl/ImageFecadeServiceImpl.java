@@ -4,11 +4,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import master.master.feignClients.MetadataClient;
 import master.master.models.ImageMetadata;
-import master.master.services.*;
+import master.master.services.ImageFecadeService;
+import master.master.services.ImageProcessingService;
+import master.master.services.RabbitPublisherService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.awt.*;
 import java.io.IOException;
 import java.util.List;
 
@@ -20,6 +21,7 @@ public class ImageFecadeServiceImpl implements ImageFecadeService {
     private final ImageProcessingService imageProcessingService;
     private final RabbitPublisherService rabbitPublisherService;
     private final MetadataClient metadataClient;
+
     @Override
     public void procesarYPublicar(MultipartFile imageFile, int partes, String id) throws IOException {
         if (imageFile == null || imageFile.isEmpty()) {
@@ -33,7 +35,7 @@ public class ImageFecadeServiceImpl implements ImageFecadeService {
         rabbitPublisherService.publicarPartes(chunks, id);
 
         // pegar a endpoint del reconstructor
-        ImageMetadata imageMetadata = new ImageMetadata(id, partes, 0, imageFile.getOriginalFilename(), imageFile.getContentType(), null );
+        ImageMetadata imageMetadata = new ImageMetadata(id, partes, 0, imageFile.getOriginalFilename(), imageFile.getContentType(), null);
         metadataClient.guardarMetaData(imageMetadata);
 
         log.info("Se publicaron {} partes de la imagen en la cola RabbitMQ.", chunks.size());

@@ -2,11 +2,11 @@ package master.master.feignClients;
 
 
 import master.master.configurations.ImageClientConfig;
+import master.master.dtos.StatusResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import master.master.dtos.StatusResponse;
 
 @FeignClient(name = "${metadata.service.name:reconstructor}", contextId = "imageClient", path = "/api/images", configuration = ImageClientConfig.class)
 public interface ImageClient {
