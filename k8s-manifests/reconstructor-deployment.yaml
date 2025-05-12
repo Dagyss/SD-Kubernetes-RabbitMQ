@@ -1,12 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  annotations:
-    kompose.cmd: kompose convert -f docker-compose.yml -o k8s-manifests/
-    kompose.version: 1.35.0 (9532ceef3)
+  name: reconstructor
+  namespace: apps
   labels:
     io.kompose.service: reconstructor
-  name: reconstructor
 spec:
   replicas: 1
   selector:
@@ -14,23 +12,24 @@ spec:
       io.kompose.service: reconstructor
   template:
     metadata:
-      annotations:
-        kompose.cmd: kompose convert -f docker-compose.yml -o k8s-manifests/
-        kompose.version: 1.35.0 (9532ceef3)
       labels:
         io.kompose.service: reconstructor
     spec:
+      nodeSelector:
+        role: app
       containers:
-        - image: dagyss/reconstructor:latest
+        - name: reconstructor
+          image: dagyss/reconstructor:latest
           imagePullPolicy: Always
-          name: reconstructor
+          ports:
+            - containerPort: 80
           env:
             - name: EUREKA_CLIENT_FETCH
               value: "true"
             - name: EUREKA_CLIENT_REGISTER
               value: "true"
             - name: EUREKA_SERVICE_URL_DEFAULTZONE
-              value: http://master:8761/eureka
+              value: http://master.apps.svc.cluster.local:8761/eureka
             - name: GCS_BUCKET_NAME
               value: bucket-imagenes-sobel
             - name: SERVER_PORT
@@ -38,17 +37,33 @@ spec:
             - name: SPRING_APPLICATION_NAME
               value: reconstructor
             - name: SPRING_REDIS_HOST
-              value: redis
-            - name: SPRING_REDIS_PASSWORD
-              value: password
+              value: redis.infra.svc.cluster.local
             - name: SPRING_REDIS_PORT
               value: "6379"
+            - name: SPRING_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secret
+                  key: redis-password
             - name: SPRING_RABBITMQ_HOST
-              value: "rabbitmq"
+              value: rabbitmq.infra.svc.cluster.local
             - name: SPRING_RABBITMQ_PORT
               value: "5672"
             - name: SPRING_RABBITMQ_USERNAME
-              value: user
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-secret
+                  key: rabbitmq-user
             - name: SPRING_RABBITMQ_PASSWORD
-              value: password
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-secret
+                  key: rabbitmq-password
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
       restartPolicy: Always

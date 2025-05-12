@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
+  name: rabbitmq-data
+  namespace: infra
   labels:
     io.kompose.service: rabbitmq-data
-  name: rabbitmq-data
 spec:
-  accessModes:
-    - ReadWriteOnce
+  accessModes: [ ReadWriteOnce ]
   resources:
     requests:
       storage: 100Mi

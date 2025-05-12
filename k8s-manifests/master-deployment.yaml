@@ -1,29 +1,30 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  annotations:
-    kompose.cmd: kompose convert -f docker-compose.yml -o k8s-manifests/
-    kompose.version: 1.35.0 (9532ceef3)
+  name: master
+  namespace: apps
   labels:
     io.kompose.service: master
-  name: master
 spec:
   replicas: 1
   selector:
     matchLabels:
       io.kompose.service: master
-  strategy:
-    type: Recreate
   template:
     metadata:
-      annotations:
-        kompose.cmd: kompose convert -f docker-compose.yml -o k8s-manifests/
-        kompose.version: 1.35.0 (9532ceef3)
       labels:
         io.kompose.service: master
     spec:
+      nodeSelector:
+        role: app
       containers:
-        - env:
+        - name: master
+          image: dagyss/master:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+            - containerPort: 8761
+          env:
             - name: EUREKA_FETCH_REGISTRY
               value: "false"
             - name: EUREKA_REGISTER_WITH_EUREKA
@@ -33,20 +34,24 @@ spec:
             - name: SPRING_APPLICATION_NAME
               value: master
             - name: SPRING_RABBITMQ_HOST
-              value: rabbitmq
-            - name: SPRING_RABBITMQ_PASSWORD
-              value: password
+              value: rabbitmq.infra.svc.cluster.local
             - name: SPRING_RABBITMQ_PORT
               value: "5672"
             - name: SPRING_RABBITMQ_USERNAME
-              value: user
-          image: dagyss/master:latest
-          name: master
-          imagePullPolicy: Always
-          ports:
-            - containerPort: 8080
-              protocol: TCP
-            - containerPort: 8761
-              protocol: TCP
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-secret
+                  key: rabbitmq-user
+            - name: SPRING_RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-secret
+                  key: rabbitmq-password
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
       restartPolicy: Always
-
