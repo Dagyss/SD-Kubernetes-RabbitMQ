@@ -19,6 +19,13 @@ jobs:
       GOOGLE_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
 
     steps:
+      - name: Mostrar red y DNS
+        run: |
+          uname -a
+          cat /etc/os-release
+          ping -c 3 api.github.com
+          nslookup api.github.com
+          
       - name: Checkout repo
         uses: actions/checkout@v3
 
@@ -41,7 +48,7 @@ jobs:
 
       - name: Upload Plan (PRs)
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: tfplan
           path: terraform/tfplan
