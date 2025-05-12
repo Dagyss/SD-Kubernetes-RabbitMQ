@@ -33,4 +33,6 @@ spec:
               value: "5672"
             - name: RABBITMQ_USER
               value: user
+            - name: GCS_BUCKET_NAME
+              value: bucket-imagenes-sobel
       restartPolicy: Always
