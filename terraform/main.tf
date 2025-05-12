@@ -84,7 +84,14 @@ provider "google" {
   zone        = var.zone
 }
 
-# Clúster zonal: usa únicamente la zona especificada
+resource "google_storage_bucket" "mi_bucket" {
+  name     = var.bucket_name
+  location = var.region
+  storage_class = "STANDARD"
+  uniform_bucket_level_access = true
+}
+
+# Clúster zonal
 resource "google_container_cluster" "primary" {
   name                     = var.cluster_name
   location                 = var.zone
@@ -99,7 +106,7 @@ resource "google_container_cluster" "primary" {
   }
 }
 
-# Pool de nodos “base” (estático) con autoscaling habilitado
+# Pool de nodos base
 resource "google_container_node_pool" "primary_nodes" {
   name     = "${var.cluster_name}-pool"
   cluster  = google_container_cluster.primary.name
@@ -118,7 +125,7 @@ resource "google_container_node_pool" "primary_nodes" {
   }
 }
 
-# Pool de nodos “workers” (elástico, sólo cuando haya Sobel-jobs)
+# Pool de nodos workers
 resource "google_container_node_pool" "worker_pool" {
   name                  = "${var.cluster_name}-workers"
   cluster               = google_container_cluster.primary.name
