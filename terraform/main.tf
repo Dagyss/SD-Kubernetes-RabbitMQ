@@ -178,6 +178,7 @@ resource "google_container_node_pool" "apps" {
     disk_size_gb  = var.boot_disk_size_gb
     disk_type     = var.disk_type
     labels        = { role = "app" }
+    oauth_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
   autoscaling {
     min_node_count = var.node_count
@@ -185,12 +186,16 @@ resource "google_container_node_pool" "apps" {
   }
 }
 
+resource "google_service_account" "reconstructor" {
+  project    = var.project_id
+  account_id   = "reconstructor-sa"
+}
+
 # Sobel Worker VMs
 resource "google_service_account" "sobel_worker" {
   project    = var.project_id
   account_id = "sobel-worker-sa"
 }
-
 
 resource "google_compute_instance_template" "sobel_worker" {
   name_prefix = "sobel-worker-"
@@ -210,18 +215,13 @@ resource "google_compute_instance_template" "sobel_worker" {
   }
 
   machine_type = var.machine_type
-  metadata_startup_script = <<-EOF
-    #!/bin/bash
-    sudo apt-get update && sudo apt-get install -y docker.io netcat-traditional
-    until nc -z 10.0.0.7 5672; do
-      sleep 5
-    done
-    sudo docker run --rm   -e RABBITMQ_HOST=10.0.0.7   -e RABBITMQ_USER=user   -e RABBITMQ_PASS=password   -e RABBITMQ_PORT=5672   dagyss/worker:latest
-  EOF
+
+  metadata_startup_script = file("${path.module}/startup-worker.sh")
+
   network_interface {
     network    = google_compute_network.vpc.id
     subnetwork = google_compute_subnetwork.subnet.id
-    access_config {}
+    access_config {}  # Asigna IP externa si es necesario
   }
 }
 
@@ -232,7 +232,7 @@ resource "google_compute_region_instance_group_manager" "sobel_workers" {
   version {
     instance_template = google_compute_instance_template.sobel_worker.self_link
   }
-  target_size        = var.worker_min_nodes
+  target_size = var.worker_min_nodes
 }
 
 resource "google_compute_region_autoscaler" "sobel_workers_autoscaler" {
@@ -249,11 +249,25 @@ resource "google_compute_region_autoscaler" "sobel_workers_autoscaler" {
   }
 }
 
-# GCS bucket data source
-data "google_storage_bucket" "image_bucket" {
-  name = var.bucket_name
+# Creación del bucket de GCS
+resource "google_storage_bucket" "mi_bucket" {
+  name                        = var.bucket_name
+  location                    = "US"
+  storage_class               = "STANDARD"
+  uniform_bucket_level_access = true
+  force_destroy               = true
 }
 
+resource "google_storage_bucket_iam_binding" "bucket_admins" {
+  bucket = google_storage_bucket.mi_bucket.name
+  role   = "roles/storage.objectAdmin"
+  members = [
+    "serviceAccount:${google_service_account.reconstructor.email}",
+    "serviceAccount:${google_service_account.sobel_worker.email}"
+  ]
+}
+
+# Reglas de Firewall
 resource "google_compute_firewall" "allow-ssh" {
   name    = "allow-ssh"
   network = google_compute_network.vpc.name
@@ -294,12 +308,12 @@ resource "tls_private_key" "ssh_key" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
+
 resource "local_file" "ssh_private_key_pem" {
   content         = tls_private_key.ssh_key.private_key_pem
   filename        = ".ssh/google_compute_engine"
   file_permission = "0600"
 }
-
 
 resource "google_compute_firewall" "allow-rabbitmq1" {
   name    = "allow-rabbitmq1"
@@ -312,10 +326,10 @@ resource "google_compute_firewall" "allow-rabbitmq1" {
 
   source_ranges = ["0.0.0.0/0"]
 }
+
 resource "google_compute_firewall" "allow-redis" {
   name    = "allow-redis"
   network = google_compute_network.vpc.name
-
 
   allow {
     protocol = "tcp"
@@ -323,12 +337,4 @@ resource "google_compute_firewall" "allow-redis" {
   }
 
   source_ranges = ["0.0.0.0/0"]
-}
-
-resource "google_storage_bucket_iam_binding" "reconstructor_storage_admin" {
-  bucket = data.google_storage_bucket.image_bucket.name
-  role   = "roles/storage.objectAdmin"
-  members = [
-    "serviceAccount:reconstructor-sa@gentle-oxygen-457917-c0.iam.gserviceaccount.com",
-  ]
 }
