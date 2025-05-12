@@ -8,19 +8,20 @@ terraform {
   }
 }
 
+# Variables
 variable "project_id" {
   description = "ID del proyecto de GCP"
   type        = string
 }
 
 variable "region" {
-  description = "Región de GCP (Iowa)"
+  description = "Región de GCP"
   type        = string
   default     = "us-central1"
 }
 
 variable "zone" {
-  description = "Zona de GCP para cluster zonal"
+  description = "Zona de GCP para clúster zonal"
   type        = string
   default     = "us-central1-a"
 }
@@ -43,7 +44,7 @@ variable "machine_type" {
 }
 
 variable "node_count" {
-  description = "Número de nodos en el pool principal"
+  description = "Número de nodos mínimo para pools estáticos"
   type        = number
   default     = 1
 }
@@ -55,28 +56,47 @@ variable "boot_disk_size_gb" {
 }
 
 variable "disk_type" {
-  description = "Tipo de disco de arranque (pd-standard|pd-balanced|pd-ssd)"
+  description = "Tipo de disco de arranque"
   type        = string
   default     = "pd-standard"
 }
 
-# Variables para el pool elástico de workers
 variable "worker_min_nodes" {
-  description = "Mínimo de nodos para el pool de workers"
+  description = "Mínimo de nodos para el pool dinámico de workers"
   type        = number
   default     = 0
 }
+
 variable "worker_max_nodes" {
-  description = "Máximo de nodos para el pool de workers"
+  description = "Máximo de nodos para el pool dinámico de workers"
   type        = number
   default     = 5
 }
 
 variable "bucket_name" {
-  description = "Nombre del bucket de GCS para almacenar fragmentos de imagen"
+  description = "Nombre del bucket de GCS para fragmentos de imagen"
   type        = string
 }
 
+variable "network" {
+  description = "VPC donde desplegar clúster y VMs"
+  type        = string
+  default     = "default"
+}
+
+variable "subnetwork" {
+  description = "Subred dentro de la VPC"
+  type        = string
+  default     = "default"
+}
+
+variable "infra_node_tag" {
+  description = "Etiqueta aplicada a nodos infra en GKE"
+  type        = string
+  default     = "gke-infra-pool"
+}
+
+# Provider
 provider "google" {
   credentials = file(var.credentials_file)
   project     = var.project_id
@@ -84,75 +104,237 @@ provider "google" {
   zone        = var.zone
 }
 
-resource "google_storage_bucket" "mi_bucket" {
-  name     = var.bucket_name
-  location = var.region
-  storage_class = "STANDARD"
-  uniform_bucket_level_access = true
+# VPC and Subnet
+resource "google_compute_network" "vpc" {
+  name                    = var.network
+  auto_create_subnetworks = false
 }
 
-# Clúster zonal
+resource "google_compute_subnetwork" "subnet" {
+  name          = var.subnetwork
+  ip_cidr_range = "10.0.0.0/16"
+  region        = var.region
+  network       = google_compute_network.vpc.id
+
+  secondary_ip_range {
+    range_name    = "gke-cluster-secondary-range"
+    ip_cidr_range = "10.1.0.0/20"
+  }
+
+  secondary_ip_range {
+    range_name    = "gke-services-secondary-range"
+    ip_cidr_range = "10.2.0.0/20"
+  }
+}
+
+# GKE Cluster
 resource "google_container_cluster" "primary" {
   name                     = var.cluster_name
   location                 = var.zone
   remove_default_node_pool = true
+  networking_mode          = "VPC_NATIVE"
+  network                  = google_compute_network.vpc.name
+  subnetwork               = google_compute_subnetwork.subnet.name
   initial_node_count       = 1
 
+  ip_allocation_policy {
+    cluster_secondary_range_name  = "gke-cluster-secondary-range"
+    services_secondary_range_name = "gke-services-secondary-range"
+  }
+  
   node_config {
     machine_type = var.machine_type
-    oauth_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
     disk_size_gb = var.boot_disk_size_gb
     disk_type    = var.disk_type
+    oauth_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 }
 
-# Pool de nodos base
-resource "google_container_node_pool" "primary_nodes" {
-  name     = "${var.cluster_name}-pool"
+# Node pool infra
+resource "google_container_node_pool" "infra" {
+  name     = "${var.cluster_name}-infra"
   cluster  = google_container_cluster.primary.name
   location = var.zone
-
+  node_config {
+    machine_type = var.machine_type
+    disk_size_gb  = var.boot_disk_size_gb
+    disk_type     = var.disk_type
+    labels        = { role = "infra" }
+    tags          = [var.infra_node_tag]
+  }
   autoscaling {
     min_node_count = var.node_count
     max_node_count = var.node_count * 2
   }
-
-  node_config {
-    machine_type = var.machine_type
-    oauth_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
-    disk_size_gb = var.boot_disk_size_gb
-    disk_type    = var.disk_type
-  }
 }
 
-# Pool de nodos workers
-resource "google_container_node_pool" "worker_pool" {
-  name                  = "${var.cluster_name}-workers"
-  cluster               = google_container_cluster.primary.name
-  location              = var.zone
-  initial_node_count    = var.worker_min_nodes
-
+# Node pool apps
+resource "google_container_node_pool" "apps" {
+  name     = "${var.cluster_name}-apps"
+  cluster  = google_container_cluster.primary.name
+  location = var.zone
+  node_config {
+    machine_type = var.machine_type
+    disk_size_gb  = var.boot_disk_size_gb
+    disk_type     = var.disk_type
+    labels        = { role = "app" }
+    oauth_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+  }
   autoscaling {
-    min_node_count = var.worker_min_nodes
-    max_node_count = var.worker_max_nodes
-  }
-
-  node_config {
-    machine_type = var.machine_type
-    oauth_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
-
-    labels = { role = "worker" }
-    taint {
-      key    = "role"
-      value  = "worker"
-      effect = "NO_SCHEDULE"
-    }
-
-    disk_size_gb = var.boot_disk_size_gb
-    disk_type    = var.disk_type
+    min_node_count = var.node_count
+    max_node_count = var.node_count * 2
   }
 }
 
-data "google_storage_bucket" "image_bucket" {
-  name = var.bucket_name
+resource "google_service_account" "reconstructor" {
+  project    = var.project_id
+  account_id   = "reconstructor-sa"
+}
+
+# Sobel Worker VMs
+resource "google_service_account" "sobel_worker" {
+  project    = var.project_id
+  account_id = "sobel-worker-sa"
+}
+
+resource "google_compute_instance_template" "sobel_worker" {
+  name_prefix = "sobel-worker-"
+  tags        = ["sobel-worker"]
+
+  service_account {
+    email  = google_service_account.sobel_worker.email
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+  }
+
+  disk {
+    boot         = true
+    auto_delete  = true
+    source_image = "projects/debian-cloud/global/images/family/debian-12"
+    disk_size_gb = var.boot_disk_size_gb
+    disk_type    = var.disk_type
+  }
+
+  machine_type = var.machine_type
+
+  metadata_startup_script = file("${path.module}/startup-worker.sh")
+
+  network_interface {
+    network    = google_compute_network.vpc.id
+    subnetwork = google_compute_subnetwork.subnet.id
+    access_config {}  # Asigna IP externa si es necesario
+  }
+}
+
+resource "google_compute_region_instance_group_manager" "sobel_workers" {
+  name               = "sobel-workers-rigm"
+  region             = var.region
+  base_instance_name = "sobel-worker"
+  version {
+    instance_template = google_compute_instance_template.sobel_worker.self_link
+  }
+  target_size = var.worker_min_nodes
+}
+
+resource "google_compute_region_autoscaler" "sobel_workers_autoscaler" {
+  name   = "sobel-workers-autoscaler"
+  region = var.region
+
+  target = google_compute_region_instance_group_manager.sobel_workers.id
+  autoscaling_policy {
+    min_replicas = var.worker_min_nodes
+    max_replicas = var.worker_max_nodes
+    cpu_utilization {
+      target = 0.6
+    }
+  }
+}
+
+# Creación del bucket de GCS
+resource "google_storage_bucket" "mi_bucket" {
+  name                        = var.bucket_name
+  location                    = "US"
+  storage_class               = "STANDARD"
+  uniform_bucket_level_access = true
+  force_destroy               = true
+}
+
+resource "google_storage_bucket_iam_binding" "bucket_admins" {
+  bucket = google_storage_bucket.mi_bucket.name
+  role   = "roles/storage.objectAdmin"
+  members = [
+    "serviceAccount:${google_service_account.reconstructor.email}",
+    "serviceAccount:${google_service_account.sobel_worker.email}"
+  ]
+}
+
+# Reglas de Firewall
+resource "google_compute_firewall" "allow-ssh" {
+  name    = "allow-ssh"
+  network = google_compute_network.vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+}
+
+resource "google_compute_firewall" "allow-http" {
+  name    = "allow-http"
+  network = google_compute_network.vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+}
+
+resource "google_compute_firewall" "allow-https" {
+  name    = "allow-https"
+  network = google_compute_network.vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["443"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+}
+
+resource "tls_private_key" "ssh_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "local_file" "ssh_private_key_pem" {
+  content         = tls_private_key.ssh_key.private_key_pem
+  filename        = ".ssh/google_compute_engine"
+  file_permission = "0600"
+}
+
+resource "google_compute_firewall" "allow-rabbitmq1" {
+  name    = "allow-rabbitmq1"
+  network = google_compute_network.vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["5672", "15672"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+}
+
+resource "google_compute_firewall" "allow-redis" {
+  name    = "allow-redis"
+  network = google_compute_network.vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["6379", "8001"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
 }
