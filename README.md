@@ -17,7 +17,11 @@ A continuación encontrarás nuestras releases principales. ¡Haz clic en cada u
   * **Tag**: [`hit-2`](https://github.com/Dagyss/SD-Kubernetes-RabbitMQ/releases/tag/hit2)
   * **Descripción**: Extiende la arquitectura con despliegue híbrido y escalable usando Terraform y Kubernetes. Permite crear y destruir *workers* en la nube (GCP/AWS/Azure) según la demanda, manteniendo una base elástica.
 
-<!-- próximamente: Hit #3 -->
+* **Hit #3: Sobel contenerizado asincrónico y escalable**
+
+  * **Tag**:  [`hit-3`](https://github.com/Dagyss/SD-Kubernetes-RabbitMQ/releases/tag/hit3)
+
+  * **Descripción breve: Despliega una infraestructura Kubernetes en GKE con Terraform, donde un cluster principal coordina servicios críticos (RabbitMQ, Redis) y aplicaciones (API REST, reconstructor) en nodegroups, mientras que máquinas virtuales externas escalan los workers asíncronos.
 
 ---
 
@@ -62,6 +66,27 @@ kubectl apply -f ../k8s-manifests/
 #    POST /processAndPublish -> image, partes
 #    GET /task/status/{id}
 #    GET /task/images/{id}
+```
+
+### Hit #3: Sobel contenerizado asincrónico y escalable
+
+```bash
+   # 1.Push al repositorio
+   #    Desencadena los GitHub Actions de los pipelines configurados.
+   # 2.Verificación de despliegue
+   #    Comprobar el estado y logs en la sección Actions de GitHub.
+   # 3.Prueba de la API REST
+   #     Obtener la IP del servicio maestro:
+
+        kubectl get svc master -n apps -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+
+   #     Ejecutar:
+   #         POST /processAndPublish (form-data: image y partes).
+   #         GET /task/status/{id}.
+   #         GET /task/images/{id}.
+
+
+
 ```
 
 ---
