@@ -6,9 +6,24 @@ terraform {
       version = "~> 4.0"
     }
   }
+  backend "gcs" {
+        bucket      = var.bucket_backend
+        prefix      = var.backend_prefix
+  }
 }
 
 # Variables
+
+variable "bucket_backend" {
+    type        = string
+    description = "GCS bucket para el estado de Terraform"
+}
+
+variable "backend_prefix" {
+    type        = string
+    description = "Path/prefix dentro del bucket"
+}
+
 variable "project_id" {
   description = "ID del proyecto de GCP"
   type        = string
