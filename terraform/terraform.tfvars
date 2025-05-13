@@ -5,6 +5,10 @@ credentials_file = "terraform-sa-key.json"
 # Bucket para fragmentos de imagen
 bucket_name      = "bucket-imagenes-sobel"
 
+# Backend
+bucket_backend   = "bucket-backend"
+backend_prefix   = "terraform/terraform.tfstate"
+
 # VPC / Subnet donde corre el cluster y las VMs
 network    = "vpc-sobel-network"
 subnetwork = "subnetwork-sobel"

@@ -3,3 +3,4 @@
 !/terraform/main.tf
 !/terraform/terraform.tfvars
 !/terraform/startup-worker.sh
+!/terraform/backend.tf
