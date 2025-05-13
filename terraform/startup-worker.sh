@@ -13,6 +13,7 @@ until nc -z 10.0.0.7 5672; do
   sleep 5
 done
 
+
 # 3) Arranco el contenedor de worker
 sudo docker run --rm \
   -e RABBITMQ_HOST=10.0.0.7 \
