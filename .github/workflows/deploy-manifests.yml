@@ -24,7 +24,10 @@ jobs:
         uses: google-github-actions/setup-gcloud@v1
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-     
+      
+      - name: Install gke-gcloud-auth-plugin
+        uses: simenandre/setup-gke-gcloud-auth-plugin@v1
+  
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
         with:
