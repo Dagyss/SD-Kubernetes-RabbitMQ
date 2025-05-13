@@ -31,7 +31,7 @@ jobs:
           version: 'latest'
 
       - name: Get GKE Credentials
-        run: gcloud container clusters get-credentials gke-cluster --region us-central1   
+        run: gcloud container clusters get-credentials gke-cluster
 
       - name: Deploy manifests
         run: kubectl apply -f k8s-manifests/
