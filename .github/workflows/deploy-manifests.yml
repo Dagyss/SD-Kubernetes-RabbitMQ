@@ -1,0 +1,36 @@
+name: Deploy to GKE
+
+on:
+  workflow_run:
+    workflows: ["Terraform CI/CD"]   
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+       
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          install_components: |
+            gke-gcloud-auth-plugin
+            kubectl
+
+      - name: Get GKE Credentials
+        run: gcloud container clusters get-credentials gke-cluster --region us-central1   
+
+      - name: Deploy manifests
+        run: kubectl apply -f k8s-manifests/
