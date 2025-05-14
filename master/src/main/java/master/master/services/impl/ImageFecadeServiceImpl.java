@@ -30,13 +30,15 @@ public class ImageFecadeServiceImpl implements ImageFecadeService {
         }
 
         log.info("Iniciando procesamiento y publicación de imagen en {} partes", partes);
+        // pegar a endpoint del reconstructor
+        ImageMetadata imageMetadata = new ImageMetadata(id, partes, 0, imageFile.getOriginalFilename(), imageFile.getContentType(), null);
+        metadataClient.guardarMetaData(imageMetadata);
 
         List<byte[]> chunks = imageProcessingService.dividirImagen(imageFile, partes);
         rabbitPublisherService.publicarPartes(chunks, id);
 
-        // pegar a endpoint del reconstructor
-        ImageMetadata imageMetadata = new ImageMetadata(id, partes, 0, imageFile.getOriginalFilename(), imageFile.getContentType(), null);
-        metadataClient.guardarMetaData(imageMetadata);
+        
+
 
         log.info("Se publicaron {} partes de la imagen en la cola RabbitMQ.", chunks.size());
     }
