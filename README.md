@@ -15,7 +15,7 @@ A continuación encontrarás nuestras releases principales. ¡Haz clic en cada u
 * **Hit #2: Offloading en la nube**
 
   * **Tag**: [`hit-2`](https://github.com/Dagyss/SD-Kubernetes-RabbitMQ/releases/tag/hit2)
-  * **Descripción**: Extiende la arquitectura con despliegue híbrido y escalable usando Terraform y Kubernetes. Permite crear y destruir *workers* en la nube (GCP/AWS/Azure) según la demanda, manteniendo una base elástica.
+  * **Descripción**: Extiende la arquitectura con despliegue híbrido y escalable usando Terraform y Kubernetes. Permite crear y destruir *workers* en la nube según la demanda, manteniendo una base elástica.
 
 * **Hit #3: Sobel contenerizado asincrónico y escalable**
 
